@@ -41,6 +41,10 @@ SELECT DISTINCT
     cst_marital_status 
 FROM silver.crm_cust_info;
 
+SELECT *
+FROM bronze.crm_cust_info
+WHERE cst_marital_status IS NULL;
+
 -- ====================================================================
 -- Checking 'silver.crm_prd_info'
 -- ====================================================================
@@ -132,6 +136,22 @@ SELECT DISTINCT
     gen 
 FROM silver.erp_cust_az12;
 
+-- Check for unmatching data between erp_cust_az12 and crm_cust_info
+SELECT 
+cid,
+CASE WHEN cid LIKE '%NAS%'
+	 THEN SUBSTRING(cid,4,LEN(cid))
+	 ELSE cid
+END AS cid,
+bdate,
+gen
+FROM bronze.erp_cust_az12
+WHERE CASE	WHEN cid LIKE '%NAS%'
+			THEN SUBSTRING(cid,4,LEN(cid))
+			ELSE cid
+	  END
+NOT IN (SELECT DISTINCT cst_key FROM silver.crm_cust_info)
+
 -- ====================================================================
 -- Checking 'silver.erp_loc_a101'
 -- ====================================================================
@@ -140,6 +160,17 @@ SELECT DISTINCT
     cntry 
 FROM silver.erp_loc_a101
 ORDER BY cntry;
+
+-- Data Standardization & Consistency
+SELECT DISTINCT
+cntry,
+CASE WHEN TRIM(cntry) = 'DE' THEN 'Germany'
+	 WHEN TRIM(cntry) IN ('US', 'USA') THEN 'United States'
+	 WHEN TRIM(cntry) = '' OR cntry IS NULL THEN 'n/a'
+	 ELSE TRIM(cntry)
+END AS cntryy
+FROM bronze.erp_loc_a101
+ORDER BY cntry
 
 -- ====================================================================
 -- Checking 'silver.erp_px_cat_g1v2'
