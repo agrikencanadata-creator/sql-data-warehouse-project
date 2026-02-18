@@ -61,3 +61,21 @@ WHERE order_date IS NOT NULL
 GROUP BY FORMAT(order_date,'yyyy_MMM')
 ORDER BY FORMAT(order_date,'yyyy_MMM') ASC;
 GO
+
+===============================================================
+Cumulative Analysis
+===============================================================
+-- Calculate the total sales per month
+-- Calculate the running total of sales over time
+SELECT
+	order_date,
+	total_sales,
+	SUM(total_sales) OVER (ORDER BY order_date) AS running_total_sales			-- Window Function
+FROM
+(SELECT
+DATETRUNC(MONTH, order_date) AS order_date,
+SUM(sales_amount) AS total_sales
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY DATETRUNC(MONTH, order_date))t;
+GO
