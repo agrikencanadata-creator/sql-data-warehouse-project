@@ -50,6 +50,18 @@ GROUP BY DATETRUNC(MONTH, order_date)
 ORDER BY DATETRUNC(MONTH, order_date) ASC;
 GO
 
+-- Yearly time parameter is displayed as DATE type 
+SELECT
+DATETRUNC(YEAR, order_date) AS order_date,
+COUNT(DISTINCT customer_key) AS total_customers,
+SUM(quantity) AS total_quantity,
+SUM(sales_amount) AS total_sales
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY DATETRUNC(YEAR, order_date)
+ORDER BY DATETRUNC(YEAR, order_date) ASC;
+GO
+
 -- Yearly and monthly time parameter is displayed as STRING type 
 SELECT
 FORMAT(order_date,'yyyy_MMM') AS order_date,
