@@ -192,4 +192,181 @@ CONCAT(ROUND(100 * (CAST (total_sales AS FLOAT) / SUM(total_sales) OVER()),2),'%
 FROM category_sales
 ORDER BY total_sales DESC
 
+/*Segment products into cost range and
+count how many products fall into each segment
+*/
+-- Order by cost range class
+WITH product_segment AS
+(
+SELECT 
+	product_key,
+	product_name,
+	cost,
+	CASE
+		 WHEN cost < 100				THEN 'Below 100'
+		 WHEN cost BETWEEN 100 AND 500	THEN '100 - 500'
+		 WHEN cost BETWEEN 500 AND 1000 THEN '500 - 1000'
+		 ELSE 'Above 1000'
+	END AS cost_range
+FROM gold.dim_products
+),
+
+class AS
+(
+SELECT
+	product_key,
+	product_name,
+	cost,
+	cost_range,
+	CASE
+		 WHEN cost_range = 'Below 100'	THEN 1
+		 WHEN cost_range = '100 - 500'	THEN 2
+		 WHEN cost_range = '500 - 1000'	THEN 3
+		 ELSE 4
+	END AS cost_range_class
+FROM product_segment
+)
+
+
+SELECT
+	cost_range_class,
+	cost_range,
+ 	COUNT(product_key) AS total_products
+FROM class
+GROUP BY cost_range_class, cost_range
+ORDER BY cost_range_class;
+GO
+
+/*Segment products into cost range and
+count how many products fall into each segment
+*/
+-- Order by total products
+WITH product_segment AS
+(
+SELECT 
+	product_key,
+	product_name,
+	cost,
+	CASE
+		 WHEN cost < 100				THEN 'Below 100'
+		 WHEN cost BETWEEN 100 AND 500	THEN '100 - 500'
+		 WHEN cost BETWEEN 500 AND 1000 THEN '500 - 1000'
+		 ELSE 'Above 1000'
+	END AS cost_range
+FROM gold.dim_products
+),
+
+class AS
+(
+SELECT
+	product_key,
+	product_name,
+	cost,
+	cost_range,
+	CASE
+		 WHEN cost_range = 'Below 100'	THEN 1
+		 WHEN cost_range = '100 - 500'	THEN 2
+		 WHEN cost_range = '500 - 1000'	THEN 3
+		 ELSE 4
+	END AS cost_range_class
+FROM product_segment
+)
+
+
+SELECT
+	cost_range,
+ 	COUNT(product_key) AS total_products
+FROM class
+GROUP BY cost_range
+ORDER BY total_products DESC
+
+/*
+Group customers into three segments based on their spending behavior:
+	- VIP: customers with at least 12 months of history and spending more than 5000 Euro
+	- Regular: customers with at least 12 months of history and spending 5000 Euro or less
+	- New: customers with a lifespan less than 12 months
+and find the total number of customers by each group
+*/
+
+-- Approach: cte + subquery
+WITH customer_spending AS
+(
+SELECT
+	c.customer_key,
+	SUM(f.sales_amount) AS total_spending,
+	MIN(order_date) AS first_order,
+	MAX(order_date) AS last_order,
+	DATEDIFF(MONTH, MIN(order_date), MAX(order_date)) AS lifespan
+FROM gold.fact_sales f
+	LEFT JOIN gold.dim_customers c
+	ON f.customer_key = c.customer_key
+GROUP BY c.customer_key
+)
+
+SELECT
+	customer_segment,
+	COUNT(customer_key) AS total_customers
+FROM
+(
+	SELECT
+		customer_key,
+		total_spending,
+		lifespan,
+		CASE
+			 WHEN lifespan >= 12 AND total_spending > 5000 THEN 'VIP'
+			 WHEN lifespan >= 12 AND total_spending <= 5000 THEN 'Regular'
+			 ELSE 'New'
+		END AS customer_segment
+	FROM customer_spending
+)t
+GROUP BY customer_segment
+ORDER BY total_customers DESC;
+GO
+
+/*
+Group customers into three segments based on their spending behavior:
+	- VIP: customers with at least 12 months of history and spending more than 5000 Euro
+	- Regular: customers with at least 12 months of history and spending 5000 Euro or less
+	- New: customers with a lifespan less than 12 months
+and find the total number of customers by each group
+*/
+
+-- Approach: cte + cte
+WITH customer_spending AS
+(
+SELECT
+	c.customer_key,
+	SUM(f.sales_amount) AS total_spending,
+	MIN(order_date) AS first_order,
+	MAX(order_date) AS last_order,
+	DATEDIFF(MONTH, MIN(order_date), MAX(order_date)) AS lifespan
+FROM gold.fact_sales f
+	LEFT JOIN gold.dim_customers c
+	ON f.customer_key = c.customer_key
+GROUP BY c.customer_key
+),
+
+segment AS
+(
+SELECT
+	customer_key,
+	total_spending,
+	lifespan,
+	CASE
+		 WHEN lifespan >= 12 AND total_spending > 5000 THEN 'VIP'
+		 WHEN lifespan >= 12 AND total_spending <= 5000 THEN 'Regular'
+		 ELSE 'New'
+	END AS customer_segment
+FROM customer_spending
+)
+
+SELECT
+	customer_segment,
+	COUNT(customer_key) AS total_customers
+FROM segment
+GROUP BY customer_segment
+ORDER BY total_customers DESC;
+GO
+
+
 
