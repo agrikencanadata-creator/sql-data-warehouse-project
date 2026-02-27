@@ -7,12 +7,21 @@ Below are test to check the count number of cst_id in
 select 
 *
 from gold.dim_customers
+where	customer_number = 'AW00011562'
+or		customer_number = 'AW00011912'
 
 ---------------------------------------------------------------------------------------
 
 select 
 *
 from gold.fact_sales
+
+---------------------------------------------------------------------------------------
+
+select
+*
+from silver.crm_cust_info
+where cst_key = 'AW00029483'
 
 ---------------------------------------------------------------------------------------
 
@@ -113,3 +122,50 @@ group by cst_id
 having count(*) = 1
 --order by cst_id
 )t
+
+
+----------------------------------------------------------------------------------------
+
+/* to check which customer number that has unknown birthdate data*/
+select
+	cid,
+	bdate,
+	gen
+-- from bronze.erp_cust_az12
+from silver.erp_cust_az12
+-- where bdate > GETDATE()
+where bdate is NULL
+
+select
+*
+from silver.crm_cust_info
+where cst_key = 'AW00029483'
+
+select
+*
+from gold.dim_customers
+where customer_number = 'AW00029483'
+
+--------------------------------------------------------------------------------------------
+
+SELECT 
+	ROW_NUMBER() OVER (ORDER BY cst_id)		AS customer_key,		-- Surrogate key
+	ci.cst_id								AS customer_id,
+	ci.cst_key								AS customer_number,
+	ci.cst_firstname						AS first_name,
+	ci.cst_lastname							AS last_name,
+	ci.cst_marital_status					AS marital_status,
+	CASE
+		 WHEN ci.cst_gndr != 'n/a' THEN ci.cst_gndr					-- CRM is the master data for primary source for gender info
+		 ELSE COALESCE(ca.gen,'n/a')								-- Fallback to ERP data
+	END										AS gender,
+	la.cntry								AS country,
+	ca.bdate								AS birthdate,
+	ci.cst_create_date						AS create_date
+FROM silver.crm_cust_info ci 
+	 LEFT JOIN silver.erp_cust_az12 ca
+		ON ci.cst_key = ca.cid
+	 LEFT JOIN silver.erp_loc_a101 la
+		ON ci.cst_key = la.cid
+-- where ci.cst_key = 'AW00029483'
+;
